@@ -1,40 +1,96 @@
 """Process entry point: compose the application, then hand over to the CLI.
 
-This is the top of the dependency graph — the only module allowed to see
-every context and adapter at once (with ``bootstrap.wiring``).
+This is the top of the dependency graph — the only place (with
+``bootstrap.wiring``) allowed to see every context and adapter at once.
 """
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Sequence
 from importlib import metadata
 
 from issuepilot.adapters.cli.app import run
 from issuepilot.adapters.cli.console import Console
 from issuepilot.adapters.cli.services import CliServices
-from issuepilot.bootstrap.config import load_config, redacted_dump
+from issuepilot.adapters.eventbus import SqliteOutboxEventBus
+from issuepilot.adapters.sqlite.connection import connect
+from issuepilot.adapters.sqlite.migrator import migrate
+from issuepilot.bootstrap.config import AppConfig, load_config, redacted_dump
 from issuepilot.bootstrap.wiring.diagnostics import build_environment_checks
+from issuepilot.bootstrap.wiring.repository import (
+    RepositoryServiceAdapter,
+    build_repository_facade,
+)
 from issuepilot.shared_kernel.cancellation import CancellationToken
+from issuepilot.shared_kernel.clock import SystemClock
 from issuepilot.shared_kernel.errors import IssuePilotError, exit_code_for
+from issuepilot.shared_kernel.ids import UlidGenerator
+
+DATABASE_FILENAME = "issuepilot.db"
 
 
-def build_services() -> CliServices:
-    config = load_config()
-    return CliServices(
-        version=metadata.version("issuepilot"),
-        cancellation=CancellationToken(),
-        environment_checks=build_environment_checks(config),
-        config_dump=redacted_dump(config),
+def open_database(config: AppConfig) -> sqlite3.Connection:
+    """Open the workspace database, applying any pending migrations."""
+    connection = connect(config.workspace_dir / DATABASE_FILENAME)
+    migrate(connection)
+    return connection
+
+
+def build_services(config: AppConfig, connection: sqlite3.Connection) -> CliServices:
+    """Compose the application from an already-open database.
+
+    The caller owns the connection and closes it — ``run_cli`` below for the
+    CLI, the fixture for a test. Composition deliberately does not acquire
+    resources it cannot release.
+    """
+    resolved_config = config
+    resolved_connection = connection
+
+    cancellation = CancellationToken()
+    ids = UlidGenerator()
+    clock = SystemClock()
+    bus = SqliteOutboxEventBus(resolved_connection)
+
+    repository_facade = build_repository_facade(
+        connection=resolved_connection,
+        workspace_dir=resolved_config.workspace_dir,
+        max_file_bytes=resolved_config.repository.max_file_bytes,
+        ids=ids,
+        clock=clock,
+        bus=bus,
+        cancellation=cancellation,
     )
+
+    return CliServices(
+        version=_version(),
+        cancellation=cancellation,
+        environment_checks=build_environment_checks(resolved_config),
+        config_dump=redacted_dump(resolved_config),
+        repository=RepositoryServiceAdapter(
+            repository_facade, resolved_config.repository.history_depth
+        ),
+    )
+
+
+def _version() -> str:
+    try:
+        return metadata.version("issuepilot")
+    except metadata.PackageNotFoundError:  # pragma: no cover - editable installs
+        return "0.0.0+unknown"
 
 
 def run_cli(argv: Sequence[str] | None = None) -> int:
     try:
-        services = build_services()
+        config = load_config()
+        connection = open_database(config)
     except IssuePilotError as exc:
         Console().error(str(exc), remediation=exc.remediation)
         return exit_code_for(exc)
-    return run(services, argv)
+    try:
+        return run(build_services(config, connection), argv)
+    finally:
+        connection.close()
 
 
 def main() -> None:

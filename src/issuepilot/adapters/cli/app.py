@@ -15,6 +15,7 @@ import typer
 
 from issuepilot.adapters.cli.commands import config as config_cmd
 from issuepilot.adapters.cli.commands import doctor as doctor_cmd
+from issuepilot.adapters.cli.commands import repo as repo_cmd
 from issuepilot.adapters.cli.console import Console
 from issuepilot.adapters.cli.services import CliServices
 from issuepilot.shared_kernel.errors import (
@@ -50,6 +51,7 @@ def create_app(services: CliServices) -> typer.Typer:
     )
     doctor_cmd.register(app, services)
     config_cmd.register(app, services)
+    repo_cmd.register(app, services)
 
     @app.callback()
     def _root() -> None:
