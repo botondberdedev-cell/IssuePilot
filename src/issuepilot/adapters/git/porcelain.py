@@ -301,12 +301,11 @@ def create_worktree(git_dir: Path, sha: str, destination: Path) -> None:
     )
 
 
-def remove_worktree(git_dir: Path, destination: Path) -> None:
-    """Deregister a worktree; tolerated to fail if it is already gone."""
-    try:
-        _run(
-            ["--git-dir", str(git_dir), "worktree", "remove", "--force", str(destination)],
-            timeout_seconds=60,
-        )
-    except GitError:
-        _run(["--git-dir", str(git_dir), "worktree", "prune"], timeout_seconds=60)
+def prune_worktrees(git_dir: Path) -> None:
+    """Drop registrations whose working directories are gone.
+
+    Deliberately *not* ``worktree remove``: that deletes the directory's
+    contents, which is the opposite of what publishing a snapshot needs. We
+    detach the tree from git first, then prune the dangling registration.
+    """
+    _run(["--git-dir", str(git_dir), "worktree", "prune"], timeout_seconds=60)

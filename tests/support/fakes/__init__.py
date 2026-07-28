@@ -15,14 +15,20 @@ from tests.support.fakes.eventbus import RecordingEventBus
 from tests.support.fakes.feedback_store import InMemoryFeedbackStore
 from tests.support.fakes.model_catalog import FakeModelCatalog
 from tests.support.fakes.reasoning import FakeReasoningModel
+from tests.support.fakes.repository import (
+    FakeRepositoryAcquirer,
+    FakeSnapshotReader,
+    InMemorySnapshotStore,
+)
 from tests.support.fakes.run_store import InMemoryRunStore
 from tests.support.fakes.search import FakeSearch
-from tests.support.fakes.snapshot_store import InMemorySnapshotStore
 from tests.support.fakes.tracker import FakeExperimentTracker
 
 FAKES_BY_PORT: dict[str, type] = {
     # repository
     "SnapshotStorePort": InMemorySnapshotStore,
+    "RepositoryAcquirerPort": FakeRepositoryAcquirer,
+    "SnapshotReaderPort": FakeSnapshotReader,
     # knowledge
     "EmbeddingGeneratorPort": FakeEmbedder,
     # investigation
