@@ -13,6 +13,12 @@ from tests.support.fakes.citations import FakeCitationVerifier
 from tests.support.fakes.embeddings import FakeEmbedder
 from tests.support.fakes.eventbus import RecordingEventBus
 from tests.support.fakes.feedback_store import InMemoryFeedbackStore
+from tests.support.fakes.knowledge import (
+    FakeSource,
+    InMemoryChunkStore,
+    InMemoryLexicalIndex,
+    InMemoryVectorIndex,
+)
 from tests.support.fakes.model_catalog import FakeModelCatalog
 from tests.support.fakes.reasoning import FakeReasoningModel
 from tests.support.fakes.repository import (
@@ -31,6 +37,10 @@ FAKES_BY_PORT: dict[str, type] = {
     "SnapshotReaderPort": FakeSnapshotReader,
     # knowledge
     "EmbeddingGeneratorPort": FakeEmbedder,
+    "SourcePort": FakeSource,
+    "ChunkStorePort": InMemoryChunkStore,
+    "LexicalIndexPort": InMemoryLexicalIndex,
+    "VectorIndexPort": InMemoryVectorIndex,
     # investigation
     "ReasoningModelPort": FakeReasoningModel,
     "SearchPort": FakeSearch,

@@ -8,12 +8,17 @@ from collections.abc import Sequence
 class FakeEmbedder:
     """Deterministic hash-based unit vectors: same text, same embedding."""
 
-    def __init__(self, dimension: int = 8) -> None:
+    def __init__(self, dimension: int = 8, model_name: str = "fake-embedder") -> None:
         self._dimension = dimension
+        self._model_name = model_name
 
     @property
     def dimension(self) -> int:
         return self._dimension
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name
 
     def embed(self, texts: Sequence[str]) -> list[tuple[float, ...]]:
         return [self._embed_one(text) for text in texts]
