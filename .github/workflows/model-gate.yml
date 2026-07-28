@@ -1,0 +1,65 @@
+name: Model gate
+
+# The real-model gate is deliberately separate from CI: pull-request latency
+# must never depend on model inference, and these jobs pull multi-gigabyte
+# models. Nightly runs report; release tags block.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+
+      - name: Cache Ollama models
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: ollama-${{ hashFiles('issuepilot.toml') }}
+
+      - name: Start Ollama and pull pinned models
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break
+            sleep 1
+          done
+          # Exact tags: Ollama resolves a bare name to name:latest, so an
+          # unpinned name silently means a different model here than locally.
+          ollama pull qwen3:8b
+          ollama pull embeddinggemma
+
+      - run: uv run issuepilot doctor
+
+      - name: Live-model contract tests
+        run: uv run pytest -m ollama
+
+      - name: Evaluation suite
+        id: evaluate
+        # Exits 7 when the gate fails; that IS the merge decision.
+        run: uv run issuepilot eval run core --format json | tee eval-report.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-report
+          path: eval-report.json
+
+      # A nightly regression should open an issue, not fail silently; a
+      # release tag should stop the release.
+      - name: Fail the release on a gate regression
+        if: failure() && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "::error::The quality gate failed; this release is blocked."
+          exit 1
