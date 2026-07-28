@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from enum import Enum, unique
 from typing import Final
 
+from issuepilot.shared_kernel.hashing import sha256_hex
+
 _SHA_RE: Final = re.compile(r"^[0-9a-f]{40}$")
 _HTTPS_RE: Final = re.compile(r"^https://[^@/\s]+(:\d+)?/\S+$")
 _SSH_URL_RE: Final = re.compile(r"^ssh://([^@\s/]+@)?[^@/\s]+(:\d+)?/\S+$")
@@ -35,6 +37,36 @@ class RepositoryLocator:
 
     raw: str
     kind: LocatorKind
+
+    def fingerprint(self) -> str:
+        """A stable, non-secret cache key for this repository.
+
+        Normalizes away the parts that identify the same repository reached
+        different ways (scheme, user, trailing ``.git``, case) so an HTTPS and
+        an SSH locator for one repository share a cache entry. Hashed because
+        the raw locator can name a private host, and cache paths end up in
+        logs and error messages.
+        """
+        return sha256_hex(self._normalized().encode("utf-8"))[:32]
+
+    def _normalized(self) -> str:
+        value = self.raw.strip()
+        if self.kind is LocatorKind.LOCAL_PATH:
+            return value.rstrip("/")
+        for scheme in ("https://", "ssh://"):
+            if value.lower().startswith(scheme):
+                value = value[len(scheme) :]
+                break
+        # Strip the SSH user and normalize SCP-like host:path to host/path.
+        if "@" in value:
+            value = value.split("@", 1)[1]
+        host, separator, path = value.partition(":")
+        if separator and not path.lstrip().isdigit():
+            value = f"{host}/{path}"
+        value = value.rstrip("/")
+        if value.lower().endswith(".git"):
+            value = value[: -len(".git")]
+        return value.lower()
 
     @classmethod
     def parse(cls, raw: str, *, allow_local_path: bool = False) -> RepositoryLocator:
