@@ -13,6 +13,7 @@ from issuepilot.shared_kernel.errors import AcquisitionError, PolicyDeniedError
 from tests.support.fakes.services import (
     DEFAULT_SHA,
     StubEvaluationService,
+    StubFeedbackService,
     StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
@@ -31,6 +32,7 @@ def services(repository: StubRepositoryService | None = None) -> CliServices:
         knowledge=StubKnowledgeService(),
         investigation=StubInvestigationService(),
         evaluation=StubEvaluationService(),
+        feedback=StubFeedbackService(),
     )
 
 

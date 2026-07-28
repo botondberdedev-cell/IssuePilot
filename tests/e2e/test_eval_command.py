@@ -14,6 +14,7 @@ from issuepilot.adapters.cli.services import CheckResult, CliServices
 from issuepilot.shared_kernel.cancellation import CancellationToken
 from tests.support.fakes.services import (
     StubEvaluationService,
+    StubFeedbackService,
     StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
@@ -33,6 +34,7 @@ def services(evaluation: StubEvaluationService | None = None) -> CliServices:
         knowledge=StubKnowledgeService(),
         investigation=StubInvestigationService(),
         evaluation=evaluation or StubEvaluationService(),
+        feedback=StubFeedbackService(),
     )
 
 

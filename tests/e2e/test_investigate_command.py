@@ -14,6 +14,7 @@ from issuepilot.shared_kernel.errors import EvidenceRequirementError, OperationI
 from tests.support.fakes.services import (
     DEFAULT_SHA,
     StubEvaluationService,
+    StubFeedbackService,
     StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
@@ -32,6 +33,7 @@ def services(investigation: StubInvestigationService | None = None) -> CliServic
         knowledge=StubKnowledgeService(),
         investigation=investigation or StubInvestigationService(),
         evaluation=StubEvaluationService(),
+        feedback=StubFeedbackService(),
     )
 
 

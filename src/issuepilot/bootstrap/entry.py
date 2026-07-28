@@ -24,6 +24,10 @@ from issuepilot.bootstrap.wiring.evaluation import (
     PipelineCaseRunner,
     build_evaluation_facade,
 )
+from issuepilot.bootstrap.wiring.feedback import (
+    FeedbackServiceAdapter,
+    build_feedback_facade,
+)
 from issuepilot.bootstrap.wiring.investigation import (
     InvestigationServiceAdapter,
     build_investigation_facade,
@@ -37,6 +41,7 @@ from issuepilot.bootstrap.wiring.repository import (
     RepositoryServiceAdapter,
     build_repository_facade,
 )
+from issuepilot.feedback.infrastructure.feedback_repo import SqliteFeedbackStore
 from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.clock import SystemClock
 from issuepilot.shared_kernel.errors import IssuePilotError, exit_code_for
@@ -140,6 +145,10 @@ def build_services(
         bus=bus,
     )
 
+    feedback_facade = build_feedback_facade(
+        connection=resolved_connection, ids=ids, clock=clock, bus=bus
+    )
+
     return CliServices(
         version=_version(),
         cancellation=cancellation,
@@ -149,6 +158,11 @@ def build_services(
         knowledge=knowledge_service,
         investigation=investigation_service,
         evaluation=EvaluationServiceAdapter(evaluation_facade),
+        feedback=FeedbackServiceAdapter(
+            feedback_facade,
+            SqliteFeedbackStore(resolved_connection, clock.now()),
+            investigation_facade,
+        ),
     )
 
 

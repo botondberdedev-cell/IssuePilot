@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from issuepilot.evaluation.application.dto import SuiteResultDTO
+from issuepilot.feedback.application.dto import DraftCase
 from issuepilot.investigation.application.dto import ReportDTO
 from issuepilot.knowledge.application.dto import IndexStatsDTO, SearchHitDTO
 from issuepilot.repository.application.dto import ManifestDTO, SnapshotDTO
@@ -99,6 +100,18 @@ class EvaluationService(Protocol):
     def available_datasets(self) -> tuple[str, ...]: ...
 
 
+class FeedbackService(Protocol):
+    """Recording report quality, in primitives the CLI already has."""
+
+    def accept(self, run_id: str) -> None: ...
+
+    def reject(self, run_id: str, note: str = "") -> None: ...
+
+    def correct(self, run_id: str, note: str) -> None: ...
+
+    def export_candidates(self) -> Sequence[DraftCase]: ...
+
+
 @dataclass(frozen=True, slots=True)
 class CliServices:
     version: str
@@ -110,3 +123,4 @@ class CliServices:
     knowledge: KnowledgeService
     investigation: InvestigationService
     evaluation: EvaluationService
+    feedback: FeedbackService

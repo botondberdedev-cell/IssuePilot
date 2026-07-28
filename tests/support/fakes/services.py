@@ -9,6 +9,7 @@ from issuepilot.evaluation.application.dto import (
     SuiteResultDTO,
     ThresholdResultDTO,
 )
+from issuepilot.feedback.application.dto import DraftCase
 from issuepilot.investigation.application.dto import FindingDTO, ReportDTO
 from issuepilot.knowledge.application.dto import IndexStatsDTO, SearchHitDTO
 from issuepilot.repository.application.dto import ManifestDTO, SnapshotDTO
@@ -215,3 +216,30 @@ def passing_suite() -> SuiteResultDTO:
 
 def failing_suite() -> SuiteResultDTO:
     return _suite([_case("case-a", ok=True), _case("case-b", ok=False)], passed=False)
+
+
+class StubFeedbackService:
+    def __init__(self, drafts: list[DraftCase] | None = None) -> None:
+        self.recorded: list[tuple[str, str, str]] = []
+        self._drafts = drafts if drafts is not None else []
+
+    def accept(self, run_id: str) -> None:
+        self.recorded.append((run_id, "accept", ""))
+
+    def reject(self, run_id: str, note: str = "") -> None:
+        self.recorded.append((run_id, "reject", note))
+
+    def correct(self, run_id: str, note: str) -> None:
+        self.recorded.append((run_id, "correct", note))
+
+    def export_candidates(self) -> Sequence[DraftCase]:
+        return tuple(self._drafts)
+
+
+def sample_draft() -> DraftCase:
+    return DraftCase(
+        run_id="01RUN00000000000000000000",
+        issue="Refunds remain pending after a retry.",
+        note="cited the wrong module",
+        suggested_category="bug-location",
+    )

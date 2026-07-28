@@ -12,6 +12,7 @@ from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.errors import AcquisitionError
 from tests.support.fakes.services import (
     StubEvaluationService,
+    StubFeedbackService,
     StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
@@ -44,6 +45,7 @@ def make_services(
         knowledge=StubKnowledgeService(),
         investigation=StubInvestigationService(),
         evaluation=StubEvaluationService(),
+        feedback=StubFeedbackService(),
     )
 
 

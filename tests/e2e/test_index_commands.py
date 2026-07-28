@@ -13,6 +13,7 @@ from issuepilot.shared_kernel.errors import ModelUnavailableError
 from tests.support.fakes.services import (
     DEFAULT_SHA,
     StubEvaluationService,
+    StubFeedbackService,
     StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
@@ -36,6 +37,7 @@ def services(
         knowledge=knowledge or StubKnowledgeService(),
         investigation=StubInvestigationService(),
         evaluation=StubEvaluationService(),
+        feedback=StubFeedbackService(),
     )
 
 
