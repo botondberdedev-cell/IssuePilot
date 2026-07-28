@@ -46,11 +46,19 @@ def run_git(
     env = dict(os.environ)
     # Never allow interactive credential or passphrase prompts from a CLI run.
     env.setdefault("GIT_TERMINAL_PROMPT", "0")
+    # Pin git's message locale. We classify failures by matching git's stderr,
+    # and on a machine with a localized git those messages are translated —
+    # error categories would silently degrade to "unknown" for anyone not
+    # running an English locale.
+    env["LC_ALL"] = "C"
+    env["LANGUAGE"] = ""
     if env_overrides:
         env.update(env_overrides)
     try:
         completed = subprocess.run(
-            ["git", *args],
+            # core.quotePath=false keeps non-ASCII paths as raw UTF-8 rather
+            # than octal-escaped, so parsers see the real path.
+            ["git", "-c", "core.quotePath=false", *args],
             cwd=cwd,
             env=env,
             capture_output=True,
