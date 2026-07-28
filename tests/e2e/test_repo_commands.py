@@ -10,7 +10,11 @@ from issuepilot.adapters.cli.app import run
 from issuepilot.adapters.cli.services import CheckResult, CliServices
 from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.errors import AcquisitionError, PolicyDeniedError
-from tests.support.fakes.repository_service import DEFAULT_SHA, StubRepositoryService
+from tests.support.fakes.repository_service import (
+    DEFAULT_SHA,
+    StubKnowledgeService,
+    StubRepositoryService,
+)
 
 pytestmark = pytest.mark.e2e
 
@@ -22,6 +26,7 @@ def services(repository: StubRepositoryService | None = None) -> CliServices:
         environment_checks=[lambda: CheckResult("git", True, "ok")],
         config_dump={},
         repository=repository or StubRepositoryService(),
+        knowledge=StubKnowledgeService(),
     )
 
 

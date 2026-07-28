@@ -18,6 +18,11 @@ from issuepilot.adapters.sqlite.connection import connect
 from issuepilot.adapters.sqlite.migrator import migrate
 from issuepilot.bootstrap.config import AppConfig, load_config, redacted_dump
 from issuepilot.bootstrap.wiring.diagnostics import build_environment_checks
+from issuepilot.bootstrap.wiring.knowledge import (
+    KnowledgeServiceAdapter,
+    RepositorySourceTranslator,
+    build_knowledge_facade,
+)
 from issuepilot.bootstrap.wiring.repository import (
     RepositoryServiceAdapter,
     build_repository_facade,
@@ -37,12 +42,21 @@ def open_database(config: AppConfig) -> sqlite3.Connection:
     return connection
 
 
-def build_services(config: AppConfig, connection: sqlite3.Connection) -> CliServices:
+def build_services(
+    config: AppConfig,
+    connection: sqlite3.Connection,
+    *,
+    semantic_enabled: bool = True,
+) -> CliServices:
     """Compose the application from an already-open database.
 
     The caller owns the connection and closes it — ``run_cli`` below for the
     CLI, the fixture for a test. Composition deliberately does not acquire
     resources it cannot release.
+
+    ``semantic_enabled`` is wired, not probed: composition must not make
+    network calls. If Ollama is down the failure surfaces at the point of
+    use as exit code 4, and ``doctor`` is what reports it up front.
     """
     resolved_config = config
     resolved_connection = connection
@@ -62,6 +76,19 @@ def build_services(config: AppConfig, connection: sqlite3.Connection) -> CliServ
         cancellation=cancellation,
     )
 
+    source = RepositorySourceTranslator(repository_facade)
+    knowledge_facade = build_knowledge_facade(
+        connection=resolved_connection,
+        workspace_dir=resolved_config.workspace_dir,
+        source=source,
+        ids=ids,
+        clock=clock,
+        bus=bus,
+        ollama_url=resolved_config.models.ollama_url,
+        embedding_model=resolved_config.models.embedding,
+        semantic_enabled=semantic_enabled,
+    )
+
     return CliServices(
         version=_version(),
         cancellation=cancellation,
@@ -70,6 +97,7 @@ def build_services(config: AppConfig, connection: sqlite3.Connection) -> CliServ
         repository=RepositoryServiceAdapter(
             repository_facade, resolved_config.repository.history_depth
         ),
+        knowledge=KnowledgeServiceAdapter(knowledge_facade, source),
     )
 
 

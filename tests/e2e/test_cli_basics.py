@@ -10,7 +10,10 @@ from issuepilot.adapters.cli.app import run
 from issuepilot.adapters.cli.services import CheckResult, CliServices
 from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.errors import AcquisitionError
-from tests.support.fakes.repository_service import StubRepositoryService
+from tests.support.fakes.repository_service import (
+    StubKnowledgeService,
+    StubRepositoryService,
+)
 
 pytestmark = pytest.mark.e2e
 
@@ -36,6 +39,7 @@ def make_services(
         environment_checks=[make_check(r) for r in results],  # type: ignore[misc]
         config_dump={"models": {"chat": "qwen3"}},
         repository=StubRepositoryService(),
+        knowledge=StubKnowledgeService(),
     )
 
 

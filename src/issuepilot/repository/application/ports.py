@@ -85,6 +85,19 @@ class SnapshotReaderPort(Protocol):
     def read_slice(self, root_path: str, path: RelativeRepoPath, line_range: LineRange) -> str: ...
 
 
+@dataclass(frozen=True, slots=True)
+class ManifestFileRecord:
+    """One manifest row, kept so an index can be built from a cached snapshot
+    without re-acquiring the repository."""
+
+    commit_sha: str
+    path: str
+    size_bytes: int
+    language: str | None
+    included: bool
+    exclusion_reason: str | None = None
+
+
 class SnapshotStorePort(Protocol):
     def put(self, record: SnapshotRecord) -> None: ...
 
@@ -93,3 +106,7 @@ class SnapshotStorePort(Protocol):
     def find_by_commit(self, locator_fingerprint: str, sha: CommitSha) -> SnapshotRecord | None: ...
 
     def list_recent(self, limit: int = 20) -> Sequence[SnapshotRecord]: ...
+
+    def put_manifest(self, records: Sequence[ManifestFileRecord]) -> None: ...
+
+    def analyzable_paths(self, commit_sha: str) -> Sequence[str]: ...

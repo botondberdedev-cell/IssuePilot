@@ -17,7 +17,7 @@ from issuepilot.repository.application.use_cases.acquire_snapshot import (
     AcquireSnapshotCommand,
 )
 from issuepilot.repository.domain.snapshot import RepositorySnapshot
-from issuepilot.repository.domain.values import LineRange, RelativeRepoPath
+from issuepilot.repository.domain.values import CommitSha, LineRange, RelativeRepoPath
 from issuepilot.shared_kernel.errors import PolicyDeniedError
 
 _MANIFEST_SAMPLE_SIZE = 20
@@ -69,6 +69,21 @@ class RepositoryFacade:
             commit_sha=commit_sha,
             text=text,
         )
+
+    def line_count(self, root_path: str, path: str) -> int:
+        """Lines in a snapshot file, or 0 when it cannot be read."""
+        try:
+            return self._reader.line_count(root_path, RelativeRepoPath(path))
+        except (ValueError, PolicyDeniedError, OSError):
+            return 0
+
+    def analyzable_paths(self, commit_sha: str) -> Sequence[str]:
+        """Paths the eligibility policy admitted for this snapshot."""
+        return self._store.analyzable_paths(commit_sha)
+
+    def snapshot_root(self, locator_fingerprint: str, commit_sha: str) -> str | None:
+        record = self._store.find_by_commit(locator_fingerprint, CommitSha(commit_sha))
+        return record.root_path if record is not None else None
 
     def verify_citation(self, root_path: str, path: str, start_line: int, end_line: int) -> bool:
         """Whether this exact location exists in this snapshot.

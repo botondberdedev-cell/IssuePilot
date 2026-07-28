@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from issuepilot.knowledge.application.dto import IndexStatsDTO, SearchHitDTO
 from issuepilot.repository.application.dto import ManifestDTO, SnapshotDTO
 
 DEFAULT_SHA = "4f2a7c" + "0" * 34
@@ -69,3 +70,38 @@ class StubRepositoryService:
         if self._error is not None:
             raise self._error
         return (sample_snapshot(),)
+
+
+def sample_hit(commit_sha: str = DEFAULT_SHA) -> SearchHitDTO:
+    return SearchHitDTO(
+        chunk_id="chunk-1",
+        path="src/refunds/webhook.py",
+        start_line=84,
+        end_line=121,
+        commit_sha=commit_sha,
+        snippet="def handle_retry(event):\n    ...\n",
+        score=0.42,
+        sources=("lexical",),
+        symbol="handle_retry",
+    )
+
+
+class StubKnowledgeService:
+    def __init__(self, hits: list[SearchHitDTO] | None = None, *, indexed: bool = True) -> None:
+        self._hits = hits if hits is not None else [sample_hit()]
+        self._indexed = indexed
+        self.built: list[str] = []
+
+    def build_index(
+        self, commit_sha: str, root_path: str, *, rebuild: bool = False
+    ) -> IndexStatsDTO:
+        self.built.append(commit_sha)
+        return IndexStatsDTO(
+            commit_sha=commit_sha, chunk_count=12, indexed_files=3, has_semantic=False
+        )
+
+    def search(self, commit_sha: str, query: str, *, limit: int = 12) -> list[SearchHitDTO]:
+        return self._hits[:limit]
+
+    def is_indexed(self, commit_sha: str) -> bool:
+        return self._indexed

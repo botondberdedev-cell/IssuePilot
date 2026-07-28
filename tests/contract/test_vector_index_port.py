@@ -1,12 +1,14 @@
-"""Contract suite for VectorIndexPort (the numpy adapter joins in v0.1-2b)."""
+"""Contract suite for VectorIndexPort: fake and memory-mapped numpy index."""
 
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import pytest
 
 from issuepilot.knowledge.application.ports import VectorIndexPort
+from issuepilot.knowledge.infrastructure.numpy_vectors import NumpyVectorIndex
 from tests.support.fakes.knowledge import InMemoryVectorIndex
 
 SHA = "a" * 40
@@ -18,9 +20,16 @@ def unit(*values: float) -> tuple[float, ...]:
     return tuple(v / norm for v in values)
 
 
-@pytest.fixture(params=["fake"])
-def index(request: pytest.FixtureRequest) -> VectorIndexPort:
-    return InMemoryVectorIndex()
+@pytest.fixture(
+    params=[
+        pytest.param("fake", id="fake"),
+        pytest.param("numpy", id="real", marks=pytest.mark.integration),
+    ]
+)
+def index(request: pytest.FixtureRequest, tmp_path: Path) -> VectorIndexPort:
+    if request.param == "fake":
+        return InMemoryVectorIndex()
+    return NumpyVectorIndex(tmp_path / "vectors")
 
 
 @pytest.fixture
@@ -59,3 +68,21 @@ def test_clear_removes_only_that_commit(populated: VectorIndexPort) -> None:
     populated.clear(SHA)
     assert list(populated.search(SHA, unit(0.0, 1.0), limit=5)) == []
     assert list(populated.search(OTHER_SHA, unit(0.0, 1.0), limit=5)) == ["elsewhere"]
+
+
+def test_added_batches_accumulate(index: VectorIndexPort) -> None:
+    index.add(SHA, [("first", unit(1.0, 0.0))])
+    index.add(SHA, [("second", unit(0.0, 1.0))])
+    assert set(index.search(SHA, unit(1.0, 1.0), limit=10)) == {"first", "second"}
+
+
+def test_query_of_wrong_dimension_returns_nothing(index: VectorIndexPort) -> None:
+    """A query embedded by a different model is not comparable; an empty
+    result beats a confidently wrong ranking."""
+    index.add(SHA, [("a", unit(1.0, 0.0))])
+    assert list(index.search(SHA, unit(1.0, 0.0, 0.0), limit=5)) == []
+
+
+def test_adding_nothing_is_a_no_op(index: VectorIndexPort) -> None:
+    index.add(SHA, [])
+    assert list(index.search(SHA, unit(1.0, 0.0), limit=5)) == []

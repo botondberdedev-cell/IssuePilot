@@ -14,8 +14,10 @@ from dataclasses import dataclass
 from issuepilot.knowledge.application.dto import IndexStatsDTO
 from issuepilot.knowledge.application.ports import (
     ChunkStorePort,
+    EmbeddingGeneratorPort,
     LexicalIndexPort,
     SourcePort,
+    VectorIndexPort,
 )
 from issuepilot.knowledge.domain.chunk import CodeChunk
 from issuepilot.knowledge.domain.chunking import chunk_document
@@ -43,6 +45,8 @@ class BuildIndex:
         ids: IdGenerator,
         clock: Clock,
         bus: EventBus,
+        vectors: VectorIndexPort | None = None,
+        embedder: EmbeddingGeneratorPort | None = None,
     ) -> None:
         self._source = source
         self._chunks = chunks
@@ -50,6 +54,12 @@ class BuildIndex:
         self._ids = ids
         self._clock = clock
         self._bus = bus
+        self._vectors = vectors
+        self._embedder = embedder
+
+    @property
+    def has_semantic(self) -> bool:
+        return self._vectors is not None and self._embedder is not None
 
     def execute(
         self,
@@ -62,6 +72,8 @@ class BuildIndex:
             files = self._source.eligible_files(commit_sha)
             self._chunks.delete_for_commit(commit_sha)
             self._lexical.clear(commit_sha)
+            if self._vectors is not None:
+                self._vectors.clear(commit_sha)
 
             pending: list[CodeChunk] = []
             total = 0
@@ -80,9 +92,9 @@ class BuildIndex:
                 pending.extend(produced)
                 total += len(produced)
                 if len(pending) >= _BATCH_SIZE:
-                    self._flush(pending)
+                    self._flush(pending, cancellation)
                     pending = []
-            self._flush(pending)
+            self._flush(pending, cancellation)
         except Exception as exc:
             self._bus.publish(
                 KnowledgeIndexFailed(
@@ -109,11 +121,21 @@ class BuildIndex:
             commit_sha=commit_sha,
             chunk_count=total,
             indexed_files=indexed_files,
-            has_semantic=False,
+            has_semantic=self.has_semantic,
         )
 
-    def _flush(self, pending: list[CodeChunk]) -> None:
+    def _flush(self, pending: list[CodeChunk], cancellation: CancellationToken) -> None:
         if not pending:
             return
         self._chunks.put_many(pending)
         self._lexical.index(pending)
+        if self._vectors is None or self._embedder is None:
+            return
+        # Embedding is the slow part of a build, so check for cancellation
+        # immediately before committing to a batch of model calls.
+        cancellation.raise_if_cancelled()
+        vectors = self._embedder.embed([chunk.text for chunk in pending])
+        self._vectors.add(
+            pending[0].commit_sha,
+            [(chunk.chunk_id, vector) for chunk, vector in zip(pending, vectors, strict=True)],
+        )

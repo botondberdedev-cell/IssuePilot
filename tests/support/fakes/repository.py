@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from issuepilot.repository.application.ports import (
     AcquiredSnapshot,
+    ManifestFileRecord,
     SnapshotRecord,
     TrackedFile,
 )
@@ -99,6 +100,7 @@ class FakeSnapshotReader:
 class InMemorySnapshotStore:
     def __init__(self) -> None:
         self._records: dict[str, SnapshotRecord] = {}
+        self._manifest: dict[str, dict[str, ManifestFileRecord]] = {}
 
     def put(self, record: SnapshotRecord) -> None:
         self._records[record.snapshot_id] = record
@@ -116,3 +118,11 @@ class InMemorySnapshotStore:
         # Snapshot ids are ULIDs, so reverse id order is reverse time order.
         ordered = sorted(self._records.values(), key=lambda r: r.snapshot_id, reverse=True)
         return tuple(ordered[:limit])
+
+    def put_manifest(self, records: Sequence[ManifestFileRecord]) -> None:
+        for record in records:
+            self._manifest.setdefault(record.commit_sha, {})[record.path] = record
+
+    def analyzable_paths(self, commit_sha: str) -> Sequence[str]:
+        rows = self._manifest.get(commit_sha, {})
+        return tuple(sorted(path for path, r in rows.items() if r.included))

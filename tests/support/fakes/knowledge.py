@@ -65,8 +65,15 @@ class InMemoryVectorIndex:
 
     def search(self, commit_sha: str, query: tuple[float, ...], *, limit: int) -> Sequence[str]:
         entries = self._vectors.get(commit_sha, [])
+        if not entries:
+            return []
+        # Same rule as the real index: a differently-sized query came from a
+        # different model and is not comparable, so return nothing rather than
+        # a ranking computed over a truncated overlap.
+        if len(query) != len(entries[0][1]):
+            return []
         scored = [
-            (sum(a * b for a, b in zip(query, vector, strict=False)), chunk_id)
+            (sum(a * b for a, b in zip(query, vector, strict=True)), chunk_id)
             for chunk_id, vector in entries
         ]
         scored.sort(key=lambda pair: (-pair[0], pair[1]))

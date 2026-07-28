@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 
 from issuepilot.repository.application.ports import (
     AcquiredSnapshot,
+    ManifestFileRecord,
     RepositoryAcquirerPort,
     SnapshotRecord,
     SnapshotStorePort,
@@ -103,6 +104,7 @@ class AcquireSnapshot:
                 root_path=acquired.root_path,
             )
         )
+        self._store.put_manifest(_manifest_records(manifest))
         self._bus.publish(
             RepositorySnapshotCreated(
                 event_id=EventId(self._ids.new_id()),
@@ -152,3 +154,30 @@ class AcquireSnapshot:
                 reason_category=exc.category.value,
             )
         )
+
+
+def _manifest_records(manifest: RepositoryManifest) -> list[ManifestFileRecord]:
+    """Flatten a manifest for storage: one row per file, included or not."""
+    sha = manifest.commit_sha.value
+    records = [
+        ManifestFileRecord(
+            commit_sha=sha,
+            path=entry.path.value,
+            size_bytes=entry.size_bytes,
+            language=entry.language,
+            included=True,
+        )
+        for entry in manifest.included
+    ]
+    records.extend(
+        ManifestFileRecord(
+            commit_sha=sha,
+            path=entry.path.value,
+            size_bytes=0,
+            language=None,
+            included=False,
+            exclusion_reason=entry.reason.value,
+        )
+        for entry in manifest.excluded
+    )
+    return records

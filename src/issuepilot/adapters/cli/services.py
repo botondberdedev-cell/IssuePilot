@@ -14,6 +14,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from issuepilot.knowledge.application.dto import IndexStatsDTO, SearchHitDTO
 from issuepilot.repository.application.dto import ManifestDTO, SnapshotDTO
 from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.hashing import Json
@@ -58,6 +59,18 @@ class RepositoryService(Protocol):
     def recent_snapshots(self, limit: int = 20) -> Sequence[SnapshotDTO]: ...
 
 
+class KnowledgeService(Protocol):
+    """Indexing and retrieval, expressed in primitives the CLI already has."""
+
+    def build_index(
+        self, commit_sha: str, root_path: str, *, rebuild: bool = False
+    ) -> IndexStatsDTO: ...
+
+    def search(self, commit_sha: str, query: str, *, limit: int = 12) -> list[SearchHitDTO]: ...
+
+    def is_indexed(self, commit_sha: str) -> bool: ...
+
+
 @dataclass(frozen=True, slots=True)
 class CliServices:
     version: str
@@ -66,3 +79,4 @@ class CliServices:
     config_dump: Mapping[str, Json]
     """Effective non-secret configuration, already redacted, for ``config show``."""
     repository: RepositoryService
+    knowledge: KnowledgeService

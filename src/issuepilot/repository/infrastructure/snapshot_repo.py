@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Sequence
 
-from issuepilot.repository.application.ports import SnapshotRecord
+from issuepilot.repository.application.ports import ManifestFileRecord, SnapshotRecord
 from issuepilot.repository.domain.values import CommitSha, RepositoryRef
 from issuepilot.shared_kernel.ids import SnapshotId
 
@@ -47,6 +47,32 @@ class SqliteSnapshotStore:
             "SELECT * FROM rep_snapshots ORDER BY snapshot_id DESC LIMIT ?", (limit,)
         ).fetchall()
         return tuple(_to_record(row) for row in rows)
+
+    def put_manifest(self, records: Sequence[ManifestFileRecord]) -> None:
+        self._connection.executemany(
+            "INSERT OR REPLACE INTO rep_manifest_files"
+            " (commit_sha, path, size_bytes, language, included, exclusion_reason)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    r.commit_sha,
+                    r.path,
+                    r.size_bytes,
+                    r.language,
+                    int(r.included),
+                    r.exclusion_reason,
+                )
+                for r in records
+            ],
+        )
+
+    def analyzable_paths(self, commit_sha: str) -> Sequence[str]:
+        rows = self._connection.execute(
+            "SELECT path FROM rep_manifest_files"
+            " WHERE commit_sha = ? AND included = 1 ORDER BY path",
+            (commit_sha,),
+        ).fetchall()
+        return tuple(row["path"] for row in rows)
 
 
 def _to_record(row: sqlite3.Row) -> SnapshotRecord:
