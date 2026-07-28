@@ -226,3 +226,31 @@ class TestCancellation:
         with pytest.raises(OperationInterruptedError):
             strategy.investigate(ISSUE, StepBudget(limit=5), cancellation=token)
         assert model.requests == []
+
+
+class TestTimeBudget:
+    def test_running_out_of_time_ends_the_run_and_marks_it_incomplete(self) -> None:
+        """A timeout keeps the evidence gathered so far rather than discarding it."""
+        replies = [{"reason": "again", "tool": "search_text", "query": "x"}] * 10
+        strategy, _, _, _ = build(replies)
+        calls = {"n": 0}
+
+        def out_of_time() -> bool:
+            calls["n"] += 1
+            return calls["n"] > 2  # allow two iterations, then expire
+
+        outcome = strategy.investigate(ISSUE, StepBudget(limit=9), out_of_time=out_of_time)
+        assert outcome.timed_out
+        assert outcome.budget_exhausted
+        assert len(outcome.steps) == 2
+        assert outcome.evidence
+
+    def test_a_generous_budget_does_not_interfere(self) -> None:
+        strategy, _, _, _ = build(
+            [
+                {"reason": "look", "tool": "search_text", "query": "x"},
+                {"reason": "done", "tool": "finish"},
+            ]
+        )
+        outcome = strategy.investigate(ISSUE, StepBudget(limit=5), out_of_time=lambda: False)
+        assert not outcome.timed_out

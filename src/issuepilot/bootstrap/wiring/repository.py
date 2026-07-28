@@ -18,6 +18,7 @@ from issuepilot.repository.application.use_cases.acquire_snapshot import (
     AcquireSnapshot,
     AcquireSnapshotCommand,
 )
+from issuepilot.repository.domain.limits import SizeBudget
 from issuepilot.repository.domain.manifest import FileEligibilityPolicy
 from issuepilot.repository.domain.snapshot import AcquisitionOptions
 from issuepilot.repository.domain.values import RepositoryLocator, RepositoryRef
@@ -37,6 +38,7 @@ def build_repository_facade(
     connection: sqlite3.Connection,
     workspace_dir: Path,
     max_file_bytes: int,
+    max_total_bytes: int,
     ids: IdGenerator,
     clock: Clock,
     bus: EventBus,
@@ -49,6 +51,7 @@ def build_repository_facade(
         acquirer=acquirer,
         store=store,
         eligibility=FileEligibilityPolicy(max_file_bytes=max_file_bytes),
+        size_budget=SizeBudget(max_total_bytes=max_total_bytes),
         ids=ids,
         clock=clock,
         bus=bus,

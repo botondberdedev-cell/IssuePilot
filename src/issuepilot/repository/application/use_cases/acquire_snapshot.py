@@ -21,6 +21,7 @@ from issuepilot.repository.domain.events import (
     RepositoryAcquisitionFailed,
     RepositorySnapshotCreated,
 )
+from issuepilot.repository.domain.limits import SizeBudget
 from issuepilot.repository.domain.manifest import (
     ExcludedFile,
     FileEligibilityPolicy,
@@ -57,6 +58,7 @@ class AcquireSnapshot:
         acquirer: RepositoryAcquirerPort,
         store: SnapshotStorePort,
         eligibility: FileEligibilityPolicy,
+        size_budget: SizeBudget,
         ids: IdGenerator,
         clock: Clock,
         bus: EventBus,
@@ -64,6 +66,7 @@ class AcquireSnapshot:
         self._acquirer = acquirer
         self._store = store
         self._eligibility = eligibility
+        self._size_budget = size_budget
         self._ids = ids
         self._clock = clock
         self._bus = bus
@@ -121,6 +124,7 @@ class AcquireSnapshot:
     def _build_manifest(self, acquired: AcquiredSnapshot, ref: RepositoryRef) -> RepositoryManifest:
         included: list[FileEntry] = []
         excluded: list[ExcludedFile] = []
+        total_bytes = 0
         for tracked in acquired.files:
             reason = self._eligibility.evaluate(
                 tracked.path, tracked.size_bytes, is_binary=tracked.is_binary
@@ -133,6 +137,10 @@ class AcquireSnapshot:
                         language=detect_language(tracked.path),
                     )
                 )
+                # Checked as we go: a pathological repository costs a bounded
+                # amount of work rather than being measured only at the end.
+                total_bytes += tracked.size_bytes
+                self._size_budget.check(total_bytes, file_count=len(included))
             else:
                 excluded.append(ExcludedFile(path=tracked.path, reason=reason))
         return RepositoryManifest(

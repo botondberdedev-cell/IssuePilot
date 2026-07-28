@@ -74,6 +74,7 @@ def build_services(
         connection=resolved_connection,
         workspace_dir=resolved_config.workspace_dir,
         max_file_bytes=resolved_config.repository.max_file_bytes,
+        max_total_bytes=resolved_config.repository.max_total_bytes,
         ids=ids,
         clock=clock,
         bus=bus,
@@ -117,7 +118,10 @@ def build_services(
         ),
         knowledge=KnowledgeServiceAdapter(knowledge_facade, source),
         investigation=InvestigationServiceAdapter(
-            investigation_facade, snapshot_roots, resolved_config.investigation.max_steps
+            investigation_facade,
+            snapshot_roots,
+            resolved_config.investigation.max_steps,
+            resolved_config.investigation.timeout_seconds,
         ),
     )
 

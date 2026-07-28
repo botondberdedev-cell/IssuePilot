@@ -19,7 +19,7 @@ behaving well:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Final
 
@@ -54,6 +54,7 @@ class InvestigationOutcome:
     evidence: tuple[EvidenceCandidateDTO, ...]
     hypotheses: tuple[str, ...]
     budget_exhausted: bool
+    timed_out: bool = False
     prompt_tokens: int = 0
     completion_tokens: int = 0
 
@@ -109,12 +110,21 @@ class ReActStrategy:
         *,
         cancellation: CancellationToken = NEVER_CANCELLED,
         on_step: object = None,
+        out_of_time: Callable[[], bool] | None = None,
     ) -> InvestigationOutcome:
         state = _State()
         current = budget
+        timed_out = False
 
         while not current.exhausted:
             cancellation.raise_if_cancelled()
+            # Running out of time ends the run rather than raising: evidence
+            # gathered so far is still worth reporting, marked incomplete.
+            # The predicate is supplied by the caller, so exactly one clock
+            # decides the budget.
+            if out_of_time is not None and out_of_time():
+                timed_out = True
+                break
             rendered = self._prompts.render(
                 "react_step@v1",
                 issue=issue.text,
@@ -155,7 +165,8 @@ class ReActStrategy:
             steps=tuple(state.steps),
             evidence=tuple(state.evidence.values()),
             hypotheses=tuple(state.hypotheses),
-            budget_exhausted=current.exhausted,
+            budget_exhausted=current.exhausted or timed_out,
+            timed_out=timed_out,
             prompt_tokens=state.prompt_tokens,
             completion_tokens=state.completion_tokens,
         )

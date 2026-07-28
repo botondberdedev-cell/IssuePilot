@@ -15,11 +15,12 @@ from issuepilot.repository.domain.events import (
     RepositoryAcquisitionFailed,
     RepositorySnapshotCreated,
 )
+from issuepilot.repository.domain.limits import SizeBudget
 from issuepilot.repository.domain.manifest import ExclusionReason, FileEligibilityPolicy
 from issuepilot.repository.domain.snapshot import AcquisitionOptions, SnapshotState
 from issuepilot.repository.domain.values import RelativeRepoPath, RepositoryLocator, RepositoryRef
 from issuepilot.shared_kernel.clock import FixedClock
-from issuepilot.shared_kernel.errors import AcquisitionError
+from issuepilot.shared_kernel.errors import AcquisitionError, PolicyDeniedError
 from issuepilot.shared_kernel.ids import UlidGenerator
 from tests.support.fakes.eventbus import RecordingEventBus
 from tests.support.fakes.repository import FakeRepositoryAcquirer, InMemorySnapshotStore
@@ -33,7 +34,10 @@ def tracked(path: str, size: int = 100, *, binary: bool = False) -> TrackedFile:
 
 
 def build(
-    files: list[TrackedFile] | None = None, *, max_file_bytes: int = 1024
+    files: list[TrackedFile] | None = None,
+    *,
+    max_file_bytes: int = 1024,
+    max_total_bytes: int = 10_000_000,
 ) -> tuple[AcquireSnapshot, InMemorySnapshotStore, RecordingEventBus, FakeRepositoryAcquirer]:
     acquirer = FakeRepositoryAcquirer()
     acquirer.seed("main", commit_sha=SHA, files=files or [tracked("src/app.py")])
@@ -43,6 +47,7 @@ def build(
         acquirer=acquirer,
         store=store,
         eligibility=FileEligibilityPolicy(max_file_bytes=max_file_bytes),
+        size_budget=SizeBudget(max_total_bytes=max_total_bytes),
         ids=UlidGenerator(),
         clock=FixedClock(datetime(2026, 7, 28, tzinfo=UTC)),
         bus=bus,
@@ -139,3 +144,28 @@ class TestFailure:
         with pytest.raises(AcquisitionError):
             use_case.execute(command(ref=RepositoryRef("missing")))
         assert list(store.list_recent()) == []
+
+
+class TestSizeBudget:
+    def test_a_repository_over_the_total_budget_is_denied(self) -> None:
+        use_case, _, _, _ = build(
+            [tracked("src/a.py", 600), tracked("src/b.py", 600)],
+            max_total_bytes=1000,
+        )
+        with pytest.raises(PolicyDeniedError, match="size budget"):
+            use_case.execute(command())
+
+    def test_a_repository_within_the_budget_succeeds(self) -> None:
+        use_case, _, _, _ = build(
+            [tracked("src/a.py", 400), tracked("src/b.py", 400)],
+            max_total_bytes=1000,
+        )
+        assert use_case.execute(command()).is_ready
+
+    def test_excluded_files_do_not_count_against_the_budget(self) -> None:
+        """Only analyzable bytes matter; a huge binary we never read is free."""
+        use_case, _, _, _ = build(
+            [tracked("src/a.py", 400), tracked("assets/logo.png", 10_000_000, binary=True)],
+            max_total_bytes=1000,
+        )
+        assert use_case.execute(command()).is_ready

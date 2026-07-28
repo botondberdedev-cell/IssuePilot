@@ -26,6 +26,7 @@ class InvestigationFacade:
         commit_sha: str,
         *,
         max_steps: int = 12,
+        timeout_seconds: float = 600.0,
         cancellation: CancellationToken = NEVER_CANCELLED,
         on_step: object = None,
     ) -> ReportDTO:
@@ -33,6 +34,7 @@ class InvestigationFacade:
             issue=IssueStatement(issue_text),
             commit_sha=commit_sha,
             max_steps=max_steps,
+            timeout_seconds=timeout_seconds,
         )
         return self._run_investigation.execute(command, cancellation=cancellation, on_step=on_step)
 

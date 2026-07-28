@@ -98,19 +98,26 @@ designed as an opt-in port and deferred to v0.3 (ADR-002).
 
 ## Resource limits
 
-Per-file size caps and history depth are configurable; oversized files are
-excluded with a recorded reason. An inter-process lock prevents concurrent
-runs from racing on a shared object cache.
+- **Per-file size cap** (`repository.max_file_bytes`): oversized files are
+  excluded from the manifest with a recorded reason.
+- **Total analyzable size** (`repository.max_total_bytes`): enforced while the
+  manifest is built, so the first file that pushes the running total past the
+  limit stops the work. Only analyzable bytes count — a large binary that was
+  never going to be read is free.
+- **Step budget** (`investigation.max_steps`): a domain object that cannot go
+  negative, so a loop terminates by construction.
+- **Wall-clock budget** (`investigation.timeout_seconds`): bound to a single
+  clock, so the loop cannot check a deadline against a different clock than
+  the one that started it. Running out of time ends the run and marks the
+  report incomplete rather than discarding the evidence already gathered.
+- **History depth** (`repository.history_depth`) bounds how much git fetches.
+- An inter-process lock prevents concurrent runs from racing on a shared
+  object cache.
 
 ## Known gaps
 
 Honest accounting of what is *not* yet built:
 
-- **No total repository size cap.** `max_total_bytes` is configurable but not
-  yet enforced during acquisition; a very large repository is bounded only by
-  history depth.
-- **No wall-clock timeout** on a whole investigation. The step budget bounds
-  the number of model calls, not their total duration.
 - **Prompt-injection resistance is untested end to end.** The controls exist
   and are unit-tested, but there is no fixture repository containing an
   injection payload driven through a real model. That is a v0.2 evaluation

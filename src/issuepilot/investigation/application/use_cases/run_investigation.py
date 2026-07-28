@@ -9,6 +9,7 @@ so the report shows what the model believed and what could not be confirmed.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from issuepilot.investigation.application.dto import (
@@ -29,6 +30,7 @@ from issuepilot.investigation.application.strategies.react import (
     ReActStrategy,
 )
 from issuepilot.investigation.domain.budget import StepBudget
+from issuepilot.investigation.domain.deadline import Deadline
 from issuepilot.investigation.domain.events import (
     InvestigationCompleted,
     InvestigationStarted,
@@ -49,11 +51,19 @@ from issuepilot.shared_kernel.ids import EventId, IdGenerator, ReportId, RunId
 _MAX_EVIDENCE_IN_PROMPT = 12
 
 
+def _deadline_predicate(clock: Clock, timeout_seconds: float) -> Callable[[], bool]:
+    """Bind a deadline to one clock, so the loop cannot check a budget against
+    a different clock than the one that started it."""
+    deadline = Deadline.of_seconds(clock.now(), timeout_seconds)
+    return lambda: deadline.expired(clock.now())
+
+
 @dataclass(frozen=True, slots=True)
 class InvestigateCommand:
     issue: IssueStatement
     commit_sha: str
     max_steps: int = 12
+    timeout_seconds: float = 600.0
 
 
 class RunInvestigation:
@@ -94,6 +104,7 @@ class RunInvestigation:
             StepBudget(limit=command.max_steps),
             cancellation=cancellation,
             on_step=on_step,
+            out_of_time=_deadline_predicate(self._clock, command.timeout_seconds),
         )
 
         verified = self._verify(outcome.evidence, command.commit_sha)
@@ -185,7 +196,9 @@ class RunInvestigation:
             )
 
         missing = _string_list(reply.data.get("missing_information"))
-        if outcome.budget_exhausted:
+        if outcome.timed_out:
+            missing = (*missing, "The time budget ran out before the agent finished.")
+        elif outcome.budget_exhausted:
             missing = (*missing, "The step budget ran out before the agent finished.")
 
         return InvestigationReport(

@@ -179,11 +179,16 @@ class InvestigationServiceAdapter:
     """Presents the investigation facade in the primitives the CLI speaks."""
 
     def __init__(
-        self, facade: InvestigationFacade, snapshot_roots: dict[str, str], max_steps: int
+        self,
+        facade: InvestigationFacade,
+        snapshot_roots: dict[str, str],
+        max_steps: int,
+        timeout_seconds: float,
     ) -> None:
         self._facade = facade
         self._snapshot_roots = snapshot_roots
         self._max_steps = max_steps
+        self._timeout_seconds = timeout_seconds
 
     def investigate(
         self,
@@ -199,6 +204,7 @@ class InvestigationServiceAdapter:
             issue_text,
             commit_sha,
             max_steps=max_steps or self._max_steps,
+            timeout_seconds=self._timeout_seconds,
             on_step=on_step,
         )
 
