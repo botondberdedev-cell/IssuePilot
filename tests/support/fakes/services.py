@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from issuepilot.evaluation.application.dto import (
+    CaseScoreDTO,
+    SuiteResultDTO,
+    ThresholdResultDTO,
+)
 from issuepilot.investigation.application.dto import FindingDTO, ReportDTO
 from issuepilot.knowledge.application.dto import IndexStatsDTO, SearchHitDTO
 from issuepilot.repository.application.dto import ManifestDTO, SnapshotDTO
@@ -151,3 +156,62 @@ class StubInvestigationService:
 
     def get_report(self, run_id: str) -> ReportDTO | None:
         return sample_report()
+
+
+class StubEvaluationService:
+    def __init__(self, result: SuiteResultDTO | None = None) -> None:
+        self._result = result if result is not None else passing_suite()
+
+    def run(self, dataset: str, *, on_case: object = None) -> SuiteResultDTO:
+        for case in self._result.cases:
+            if callable(on_case):
+                on_case(case)
+        return self._result
+
+    def available_datasets(self) -> tuple[str, ...]:
+        return ("core",)
+
+
+def _case(case_id: str, *, ok: bool) -> CaseScoreDTO:
+    value = 1.0 if ok else 0.0
+    return CaseScoreDTO(
+        case_id=case_id,
+        category="architecture",
+        passed=ok,
+        metrics={
+            "citation-validity": value,
+            "required-path-recall": value,
+            "claim-grounding": 1.0,
+            "forbidden-claim-absence": 1.0,
+            "honesty": 1.0,
+        },
+    )
+
+
+def _suite(cases: list[CaseScoreDTO], *, passed: bool) -> SuiteResultDTO:
+    validity = sum(c.metrics["citation-validity"] for c in cases) / len(cases)
+    return SuiteResultDTO(
+        evaluation_run_id="01EVALRUN0000000000000000",
+        dataset="core",
+        dataset_hash="abc123def456" + "0" * 52,
+        passed=passed,
+        metrics={"citation-validity": validity, "pass-rate": 1.0 if passed else 0.5},
+        thresholds=(
+            ThresholdResultDTO(
+                metric="citation-validity",
+                required=1.0,
+                actual=validity,
+                met=passed,
+                mandatory=True,
+            ),
+        ),
+        cases=tuple(cases),
+    )
+
+
+def passing_suite() -> SuiteResultDTO:
+    return _suite([_case("case-a", ok=True), _case("case-b", ok=True)], passed=True)
+
+
+def failing_suite() -> SuiteResultDTO:
+    return _suite([_case("case-a", ok=True), _case("case-b", ok=False)], passed=False)

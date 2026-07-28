@@ -10,6 +10,11 @@ module.
 from __future__ import annotations
 
 from tests.support.fakes.embeddings import FakeEmbedder
+from tests.support.fakes.evaluation import (
+    FakeExperimentTracker,
+    InMemoryDatasetRepository,
+    ScriptedCaseRunner,
+)
 from tests.support.fakes.eventbus import RecordingEventBus
 from tests.support.fakes.feedback_store import InMemoryFeedbackStore
 from tests.support.fakes.investigation import (
@@ -32,7 +37,6 @@ from tests.support.fakes.repository import (
     FakeSnapshotReader,
     InMemorySnapshotStore,
 )
-from tests.support.fakes.tracker import FakeExperimentTracker
 
 FAKES_BY_PORT: dict[str, type] = {
     # repository
@@ -54,6 +58,8 @@ FAKES_BY_PORT: dict[str, type] = {
     "RunStorePort": InMemoryRunStore,
     # evaluation
     "ExperimentTrackerPort": FakeExperimentTracker,
+    "DatasetPort": InMemoryDatasetRepository,
+    "InvestigationRunnerPort": ScriptedCaseRunner,
     # governance
     "ModelCatalogPort": FakeModelCatalog,
     # feedback

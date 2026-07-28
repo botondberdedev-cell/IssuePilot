@@ -9,6 +9,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Sequence
 from importlib import metadata
+from pathlib import Path
 
 from issuepilot.adapters.cli.app import run
 from issuepilot.adapters.cli.console import Console
@@ -18,6 +19,11 @@ from issuepilot.adapters.sqlite.connection import connect
 from issuepilot.adapters.sqlite.migrator import migrate
 from issuepilot.bootstrap.config import AppConfig, load_config, redacted_dump
 from issuepilot.bootstrap.wiring.diagnostics import build_environment_checks
+from issuepilot.bootstrap.wiring.evaluation import (
+    EvaluationServiceAdapter,
+    PipelineCaseRunner,
+    build_evaluation_facade,
+)
 from issuepilot.bootstrap.wiring.investigation import (
     InvestigationServiceAdapter,
     build_investigation_facade,
@@ -108,21 +114,41 @@ def build_services(
         snapshot_roots=snapshot_roots,
     )
 
+    repository_service = RepositoryServiceAdapter(
+        repository_facade, resolved_config.repository.history_depth
+    )
+    knowledge_service = KnowledgeServiceAdapter(knowledge_facade, source)
+    investigation_service = InvestigationServiceAdapter(
+        investigation_facade,
+        snapshot_roots,
+        resolved_config.investigation.max_steps,
+        resolved_config.investigation.timeout_seconds,
+    )
+    evaluation_facade = build_evaluation_facade(
+        connection=resolved_connection,
+        dataset_root=Path("eval_data"),
+        tracker_path=resolved_config.workspace_dir / "experiments.jsonl",
+        runner=PipelineCaseRunner(
+            repository_service,
+            knowledge_service,
+            investigation_service,
+            Path.cwd(),
+            resolved_config.investigation.max_steps,
+        ),
+        ids=ids,
+        clock=clock,
+        bus=bus,
+    )
+
     return CliServices(
         version=_version(),
         cancellation=cancellation,
         environment_checks=build_environment_checks(resolved_config),
         config_dump=redacted_dump(resolved_config),
-        repository=RepositoryServiceAdapter(
-            repository_facade, resolved_config.repository.history_depth
-        ),
-        knowledge=KnowledgeServiceAdapter(knowledge_facade, source),
-        investigation=InvestigationServiceAdapter(
-            investigation_facade,
-            snapshot_roots,
-            resolved_config.investigation.max_steps,
-            resolved_config.investigation.timeout_seconds,
-        ),
+        repository=repository_service,
+        knowledge=knowledge_service,
+        investigation=investigation_service,
+        evaluation=EvaluationServiceAdapter(evaluation_facade),
     )
 
 

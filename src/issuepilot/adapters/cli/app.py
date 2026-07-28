@@ -15,6 +15,7 @@ import typer
 
 from issuepilot.adapters.cli.commands import config as config_cmd
 from issuepilot.adapters.cli.commands import doctor as doctor_cmd
+from issuepilot.adapters.cli.commands import evaluate as evaluate_cmd
 from issuepilot.adapters.cli.commands import index as index_cmd
 from issuepilot.adapters.cli.commands import investigate as investigate_cmd
 from issuepilot.adapters.cli.commands import repo as repo_cmd
@@ -56,6 +57,7 @@ def create_app(services: CliServices) -> typer.Typer:
     repo_cmd.register(app, services)
     index_cmd.register(app, services)
     investigate_cmd.register(app, services)
+    evaluate_cmd.register(app, services)
 
     @app.callback()
     def _root() -> None:

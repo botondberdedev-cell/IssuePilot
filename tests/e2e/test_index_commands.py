@@ -12,6 +12,7 @@ from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.errors import ModelUnavailableError
 from tests.support.fakes.services import (
     DEFAULT_SHA,
+    StubEvaluationService,
     StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
@@ -34,6 +35,7 @@ def services(
         repository=repository or StubRepositoryService(),
         knowledge=knowledge or StubKnowledgeService(),
         investigation=StubInvestigationService(),
+        evaluation=StubEvaluationService(),
     )
 
 

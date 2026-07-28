@@ -14,6 +14,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from issuepilot.evaluation.application.dto import SuiteResultDTO
 from issuepilot.investigation.application.dto import ReportDTO
 from issuepilot.knowledge.application.dto import IndexStatsDTO, SearchHitDTO
 from issuepilot.repository.application.dto import ManifestDTO, SnapshotDTO
@@ -90,6 +91,14 @@ class InvestigationService(Protocol):
     def get_report(self, run_id: str) -> ReportDTO | None: ...
 
 
+class EvaluationService(Protocol):
+    """The evaluation suite, expressed in primitives the CLI already has."""
+
+    def run(self, dataset: str, *, on_case: object = None) -> SuiteResultDTO: ...
+
+    def available_datasets(self) -> tuple[str, ...]: ...
+
+
 @dataclass(frozen=True, slots=True)
 class CliServices:
     version: str
@@ -100,3 +109,4 @@ class CliServices:
     repository: RepositoryService
     knowledge: KnowledgeService
     investigation: InvestigationService
+    evaluation: EvaluationService

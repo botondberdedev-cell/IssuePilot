@@ -12,6 +12,7 @@ from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.errors import AcquisitionError, PolicyDeniedError
 from tests.support.fakes.services import (
     DEFAULT_SHA,
+    StubEvaluationService,
     StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
@@ -29,6 +30,7 @@ def services(repository: StubRepositoryService | None = None) -> CliServices:
         repository=repository or StubRepositoryService(),
         knowledge=StubKnowledgeService(),
         investigation=StubInvestigationService(),
+        evaluation=StubEvaluationService(),
     )
 
 

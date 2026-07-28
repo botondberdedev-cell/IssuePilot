@@ -71,6 +71,12 @@ ignore = [
 
 # ── mypy ────────────────────────────────────────────────────────────────────
 
+[[tool.mypy.overrides]]
+# MLflow is an optional extra, imported lazily; a developer without it
+# installed must still get a clean type check.
+module = ["mlflow.*"]
+ignore_missing_imports = true
+
 [tool.mypy]
 python_version = "3.13"
 strict = true

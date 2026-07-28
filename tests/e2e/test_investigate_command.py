@@ -13,6 +13,7 @@ from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.errors import EvidenceRequirementError, OperationInterruptedError
 from tests.support.fakes.services import (
     DEFAULT_SHA,
+    StubEvaluationService,
     StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
@@ -30,6 +31,7 @@ def services(investigation: StubInvestigationService | None = None) -> CliServic
         repository=StubRepositoryService(),
         knowledge=StubKnowledgeService(),
         investigation=investigation or StubInvestigationService(),
+        evaluation=StubEvaluationService(),
     )
 
 
