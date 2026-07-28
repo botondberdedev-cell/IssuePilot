@@ -113,16 +113,50 @@ Every port has a fake and a contract suite that runs both implementations
 through identical assertions, so fakes cannot quietly drift from the real
 adapters. See [docs/adr/](docs/adr/).
 
+## Measured quality
+
+`issuepilot eval run` scores the tool against a dataset and exits 7 if the
+gate fails, so CI needs no output parsing. Running it against IssuePilot
+itself with `qwen3:8b` gives the current honest baseline:
+
+| Metric | Score | Gate |
+|---|---:|---:|
+| citation-validity | **1.000** | 1.00 |
+| forbidden-claim-absence | 1.000 | 1.00 |
+| claim-grounding | 1.000 | 0.70 |
+| honesty | 0.875 | 1.00 |
+| required-path-recall | 0.375 | 0.60 |
+| pass-rate | 0.250 | 0.50 |
+
+**The gate currently fails, and that is the point.** Two findings the suite
+produced immediately:
+
+*Citations are trustworthy; retrieval is not yet.* Every citation the tool
+emitted resolved correctly in its own snapshot — the central guarantee holds.
+But the agent surfaces a genuinely relevant file only 37.5% of the time. A
+single hand-picked question looked excellent; measured across eight, recall
+is the weak link. That gap between anecdote and measurement is exactly why
+the evaluation harness exists.
+
+*It still invents answers to questions with no answer.* Asked where the
+(nonexistent) Kubernetes operator lives, the tool asserted something rather
+than saying the repository does not contain one. Honesty is the metric that
+catches this, and it is failing.
+
+Improving these is v0.2's remaining work: better retrieval, and a prompt that
+makes "I could not find this" a first-class outcome.
+
 ## Status
 
-v0.1 is feature-complete: acquisition, indexing, hybrid retrieval, the ReAct
-agent, and cited reports. Next is v0.2 — a versioned evaluation dataset,
-quality gates in CI, and MLflow lineage — which is what will let claims about
-quality be measured rather than asserted.
+v0.1 is feature-complete. v0.2 has the evaluation dataset, deterministic
+metrics, quality gates, champion/challenger promotion rules, drift
+classification, and the feedback loop. Remaining: Plan-and-Execute as a second
+strategy to compare against ReAct, caches and benchmarks (v0.3), and the
+optional sandboxed execution and daemon.
 
-Known limitations: the model is poorly calibrated and tends to report high
-confidence; evaluation is not yet automated; only Python and Markdown get
-structure-aware chunking.
+Known limitations: retrieval recall and honesty are below their gates (above);
+the model reports high confidence regardless of correctness; only Python and
+Markdown get structure-aware chunking.
 
 ## License
 
