@@ -1,0 +1,241 @@
+[project]
+name = "issuepilot"
+version = "0.1.0.dev0"
+description = "Local-first CLI that investigates repository issues and produces evidence-linked, reproducible reports"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+authors = [{ name = "Botond Berde" }]
+dependencies = [
+    "typer>=0.15",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "platformdirs>=4.3",
+    "httpx>=0.28",
+    "numpy>=2.2",
+    "jinja2>=3.1",
+]
+
+[project.scripts]
+issuepilot = "issuepilot.adapters.cli.app:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "hypothesis>=6.115",
+    "mypy>=1.13",
+    "ruff>=0.9",
+    "import-linter>=2.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/issuepilot"]
+
+# ── ruff ────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",   # pycodestyle / pyflakes
+    "I",             # isort
+    "N",             # pep8-naming
+    "UP",            # pyupgrade
+    "B",             # bugbear
+    "SIM",           # simplify
+    "C4",            # comprehensions
+    "PT",            # pytest style
+    "RUF",
+    "TID",           # tidy imports (banned-api below)
+    "S",             # bandit
+]
+ignore = [
+    "S603",          # subprocess with argv list is our sanctioned pattern (no shell)
+    "S607",          # resolving `git` from PATH is intentional (system git)
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"subprocess".msg = "External processes may only be spawned inside issuepilot.adapters (see architecture contracts)."
+
+[tool.ruff.lint.per-file-ignores]
+"src/issuepilot/adapters/**" = ["TID251"]
+"tests/**" = ["S101", "S105", "S106", "S108"]
+
+# ── mypy ────────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+files = ["src", "tests"]
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+# ── pytest ──────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -m 'not integration and not e2e and not ollama and not slow'"
+markers = [
+    "integration: touches a real SQLite file or real git processes",
+    "e2e: drives the full CLI",
+    "ollama: requires a live Ollama daemon with pinned models",
+    "slow: long-running (extended hypothesis profiles, large fixtures)",
+    "security: security-relevant tests (run in the default set)",
+]
+
+# ── coverage ────────────────────────────────────────────────────────────────
+
+[tool.coverage.run]
+source_pkgs = ["issuepilot"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = true
+
+# ── import-linter: the architecture is executable ───────────────────────────
+
+[tool.importlinter]
+root_packages = ["issuepilot"]
+include_external_packages = true
+
+# 1. The six bounded contexts are mutually independent.
+#    Cross-context communication happens only via bootstrap/wiring translators.
+[[tool.importlinter.contracts]]
+name = "Bounded contexts are independent"
+type = "independence"
+modules = [
+    "issuepilot.repository",
+    "issuepilot.knowledge",
+    "issuepilot.investigation",
+    "issuepilot.evaluation",
+    "issuepilot.governance",
+    "issuepilot.feedback",
+]
+
+# 2. DDD layering inside every context.
+[[tool.importlinter.contracts]]
+name = "domain < application < infrastructure in every context"
+type = "layers"
+containers = [
+    "issuepilot.repository",
+    "issuepilot.knowledge",
+    "issuepilot.investigation",
+    "issuepilot.evaluation",
+    "issuepilot.governance",
+    "issuepilot.feedback",
+]
+layers = ["infrastructure", "application", "domain"]
+
+# 3. Domain layers are dependency-free: stdlib + shared_kernel only.
+[[tool.importlinter.contracts]]
+name = "Domain layers are dependency-free"
+type = "forbidden"
+source_modules = ["issuepilot.*.domain"]
+forbidden_modules = [
+    "pydantic",
+    "pydantic_settings",
+    "typer",
+    "click",
+    "httpx",
+    "numpy",
+    "jinja2",
+    "mlflow",
+    "sqlite3",
+    "subprocess",
+    "issuepilot.adapters",
+    "issuepilot.bootstrap",
+]
+
+# 4. Application layers are technology-free: they talk to ports, never to tech.
+[[tool.importlinter.contracts]]
+name = "Application layers are technology-free"
+type = "forbidden"
+source_modules = ["issuepilot.*.application"]
+forbidden_modules = [
+    "pydantic",
+    "pydantic_settings",
+    "typer",
+    "click",
+    "httpx",
+    "numpy",
+    "jinja2",
+    "mlflow",
+    "sqlite3",
+    "subprocess",
+    "issuepilot.adapters",
+    "issuepilot.bootstrap",
+]
+
+# 5. The CLI is a driving adapter: application facades only — no backend tech
+#    adapters, no context internals.
+[[tool.importlinter.contracts]]
+name = "CLI depends only on application facades"
+type = "forbidden"
+source_modules = ["issuepilot.adapters.cli"]
+forbidden_modules = [
+    "issuepilot.adapters.git",
+    "issuepilot.adapters.ollama",
+    "issuepilot.adapters.sqlite",
+    "issuepilot.adapters.mlflow",
+    "issuepilot.adapters.sandbox",
+    "issuepilot.repository.infrastructure",
+    "issuepilot.repository.domain",
+    "issuepilot.knowledge.infrastructure",
+    "issuepilot.knowledge.domain",
+    "issuepilot.investigation.infrastructure",
+    "issuepilot.investigation.domain",
+    "issuepilot.evaluation.infrastructure",
+    "issuepilot.evaluation.domain",
+    "issuepilot.governance.infrastructure",
+    "issuepilot.governance.domain",
+    "issuepilot.feedback.infrastructure",
+    "issuepilot.feedback.domain",
+]
+
+# 6. Global layering. Backend tech adapters are listed individually so the
+#    CLI (also under adapters/) can sit ABOVE the contexts while the backend
+#    adapters sit BELOW them.
+[[tool.importlinter.contracts]]
+name = "Global layering"
+type = "layers"
+layers = [
+    "issuepilot.bootstrap",
+    "issuepilot.adapters.cli",
+    "issuepilot.repository | issuepilot.knowledge | issuepilot.investigation | issuepilot.evaluation | issuepilot.governance | issuepilot.feedback",
+    "issuepilot.adapters.git | issuepilot.adapters.ollama | issuepilot.adapters.sqlite | issuepilot.adapters.mlflow | issuepilot.adapters.telemetry | issuepilot.adapters.sandbox | issuepilot.adapters.eventbus",
+    "issuepilot.shared_kernel",
+]
+
+# 7. shared_kernel is a leaf: stdlib only.
+[[tool.importlinter.contracts]]
+name = "shared_kernel is a stdlib-only leaf"
+type = "forbidden"
+source_modules = ["issuepilot.shared_kernel"]
+forbidden_modules = [
+    "pydantic",
+    "pydantic_settings",
+    "typer",
+    "click",
+    "httpx",
+    "numpy",
+    "jinja2",
+    "mlflow",
+    "issuepilot.repository",
+    "issuepilot.knowledge",
+    "issuepilot.investigation",
+    "issuepilot.evaluation",
+    "issuepilot.governance",
+    "issuepilot.feedback",
+    "issuepilot.adapters",
+    "issuepilot.bootstrap",
+]

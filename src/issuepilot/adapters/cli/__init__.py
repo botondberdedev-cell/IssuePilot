@@ -1,0 +1,1 @@
+"""issuepilot.adapters.cli"""
