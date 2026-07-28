@@ -73,9 +73,24 @@ class TestReportInvariant:
         )
         assert len(report.evidence_backed_findings) == 1
 
-    def test_report_requires_findings(self) -> None:
-        with pytest.raises(ValueError, match="at least one finding"):
+    def test_a_report_saying_nothing_at_all_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="findings or explain what is missing"):
             self._report(())
+
+    def test_a_report_with_no_findings_is_valid_when_it_explains_why(self) -> None:
+        """Admitting the repository does not answer the issue is a correct
+        outcome, not a malformed report."""
+        report = InvestigationReport(
+            report_id=ReportId(new_ulid()),
+            run_id=RunId(new_ulid()),
+            commit_sha=SHA,
+            issue_summary="where is the kubernetes operator",
+            findings=(),
+            completeness=ReportCompleteness.COMPLETE,
+            missing_information=("This repository contains no Kubernetes code.",),
+        )
+        assert report.findings == ()
+        assert report.missing_information
 
     def test_evidence_from_another_snapshot_is_rejected(self) -> None:
         cross = Finding(

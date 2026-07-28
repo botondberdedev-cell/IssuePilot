@@ -17,7 +17,7 @@ from issuepilot.knowledge.application.ports import (
     LexicalIndexPort,
     VectorIndexPort,
 )
-from issuepilot.knowledge.domain.fusion import reciprocal_rank_fusion
+from issuepilot.knowledge.domain.fusion import diversify, reciprocal_rank_fusion
 
 _SNIPPET_CHARS = 600
 
@@ -29,6 +29,9 @@ class SearchCommand:
     limit: int = 12
     lexical_candidates: int = 40
     semantic_candidates: int = 40
+    per_file: int = 2
+    """Cap on chunks from one file, so a verbose document cannot crowd out
+    the code it describes."""
 
 
 class Search:
@@ -62,11 +65,20 @@ class Search:
         if semantic is not None:
             ranked["semantic"] = semantic
 
-        fused = reciprocal_rank_fusion(ranked, limit=command.limit)
+        fused = reciprocal_rank_fusion(ranked)
         if not fused:
             return []
 
-        by_id = {c.chunk_id: c for c in self._chunks.get_many([r.key for r in fused])}
+        # Diversify before truncating: the cap must apply to what the caller
+        # sees, not to an already-truncated list.
+        loaded = {c.chunk_id: c for c in self._chunks.get_many([r.key for r in fused])}
+        fused = diversify(
+            [r for r in fused if r.key in loaded],
+            lambda r: loaded[r.key].path,
+            per_group=command.per_file,
+            limit=command.limit,
+        )
+        by_id = loaded
         hits: list[SearchHitDTO] = []
         for result in fused:
             chunk = by_id.get(result.key)

@@ -116,35 +116,39 @@ adapters. See [docs/adr/](docs/adr/).
 ## Measured quality
 
 `issuepilot eval run` scores the tool against a dataset and exits 7 if the
-gate fails, so CI needs no output parsing. Running it against IssuePilot
-itself with `qwen3:8b` gives the current honest baseline:
+gate fails, so CI needs no output parsing. Against IssuePilot itself with
+`qwen3:8b`:
 
 | Metric | Score | Gate |
 |---|---:|---:|
-| citation-validity | **1.000** | 1.00 |
+| citation-validity | 1.000 | 1.00 |
 | forbidden-claim-absence | 1.000 | 1.00 |
 | claim-grounding | 1.000 | 0.70 |
-| honesty | 0.875 | 1.00 |
-| required-path-recall | 0.375 | 0.60 |
-| pass-rate | 0.250 | 0.50 |
+| honesty | 1.000 | 1.00 |
+| required-path-recall | 0.625 | 0.60 |
+| pass-rate | 0.625 | 0.50 |
 
-**The gate currently fails, and that is the point.** Two findings the suite
-produced immediately:
+The gate passes — but the interesting part is that it did not at first, and
+what the failures taught:
 
-*Citations are trustworthy; retrieval is not yet.* Every citation the tool
-emitted resolved correctly in its own snapshot — the central guarantee holds.
-But the agent surfaces a genuinely relevant file only 37.5% of the time. A
-single hand-picked question looked excellent; measured across eight, recall
-is the weak link. That gap between anecdote and measurement is exactly why
-the evaluation harness exists.
+**Retrieval recall was 0.375.** A single hand-picked question had looked
+excellent; measured across eight it did not. The cause was that this
+repository's own design documents describe its mechanisms in prose that
+out-competes the code semantically, so search returned essays about the
+budget rather than `budget.py`. Two fixes took recall to 0.625: results are
+now diversified so one verbose file cannot occupy every slot, and the agent
+is told that documentation states intent while code states behaviour.
 
-*It still invents answers to questions with no answer.* Asked where the
-(nonexistent) Kubernetes operator lives, the tool asserted something rather
-than saying the repository does not contain one. Honesty is the metric that
-catches this, and it is failing.
+**Honesty was 0.875.** Asked where the nonexistent Kubernetes operator lived,
+the tool assembled an answer from loosely related files. The root cause was
+in our code, not the model: when the model concluded nothing, synthesis
+fabricated a placeholder finding. A report may now contain no findings at
+all, provided it explains what it could not establish — saying "the
+repository does not answer this" is a correct outcome.
 
-Improving these is v0.2's remaining work: better retrieval, and a prompt that
-makes "I could not find this" a first-class outcome.
+Recall at 0.625 still means the agent misses a relevant file more than a
+third of the time. That is the honest state of the art here, and the next
+thing worth improving.
 
 ## Status
 
@@ -154,9 +158,9 @@ classification, and the feedback loop. Remaining: Plan-and-Execute as a second
 strategy to compare against ReAct, caches and benchmarks (v0.3), and the
 optional sandboxed execution and daemon.
 
-Known limitations: retrieval recall and honesty are below their gates (above);
-the model reports high confidence regardless of correctness; only Python and
-Markdown get structure-aware chunking.
+Known limitations: retrieval still misses a relevant file about a third of
+the time; the model reports high confidence regardless of correctness; only
+Python and Markdown get structure-aware chunking.
 
 ## License
 

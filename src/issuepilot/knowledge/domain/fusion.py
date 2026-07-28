@@ -9,7 +9,7 @@ result so evaluation can attribute a hit to the retriever that found it.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final
 
@@ -52,3 +52,47 @@ def reciprocal_rank_fusion(
     fused = [FusedResult(key=key, score=score, ranks=ranks[key]) for key, score in scores.items()]
     fused.sort(key=lambda r: (-r.score, min(r.ranks.values()), r.key))
     return fused[:limit] if limit is not None else fused
+
+
+@dataclass(frozen=True, slots=True)
+class Diversified:
+    """A fused result together with the group it was kept for."""
+
+    result: FusedResult
+    group: str
+
+
+def diversify(
+    results: Sequence[FusedResult],
+    group_of: Callable[[FusedResult], str],
+    *,
+    per_group: int = 2,
+    limit: int | None = None,
+) -> list[FusedResult]:
+    """Cap how many results one group may contribute, preserving rank order.
+
+    Without this, a single verbose file — a design document describing a
+    mechanism, say — can occupy every slot, crowding out the code that
+    actually implements it. Retrieval then looks confident and answers from
+    prose.
+
+    Results beyond the per-group cap are not discarded outright: they are
+    appended after the diversified set, so a genuinely one-file answer still
+    surfaces the rest of that file once every other file has had a turn.
+    """
+    if per_group < 1:
+        raise ValueError(f"per_group must be positive, got {per_group}")
+
+    kept: list[FusedResult] = []
+    overflow: list[FusedResult] = []
+    counts: dict[str, int] = {}
+    for result in results:
+        group = group_of(result)
+        if counts.get(group, 0) < per_group:
+            counts[group] = counts.get(group, 0) + 1
+            kept.append(result)
+        else:
+            overflow.append(result)
+
+    combined = kept + overflow
+    return combined[:limit] if limit is not None else combined

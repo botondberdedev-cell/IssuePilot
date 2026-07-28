@@ -222,11 +222,25 @@ class TestEvidenceDiscipline:
         (finding,) = harness.run().findings
         assert finding.confidence == 1.0
 
-    def test_no_findings_still_yields_an_honest_report(self) -> None:
+    def test_no_findings_yields_an_admission_not_an_invented_claim(self) -> None:
+        """Fabricating a finding here would be the exact failure this product
+        exists to prevent."""
         harness = Harness([FIND, STOP, report_reply([])])
         report = harness.run()
-        assert report.findings
-        assert "no conclusion" in report.findings[0].claim.lower()
+        assert report.findings == ()
+        assert report.missing_information
+
+    def test_the_models_own_explanation_is_kept_when_it_gives_one(self) -> None:
+        harness = Harness(
+            [
+                FIND,
+                STOP,
+                report_reply([], missing_information=["The repository has no such module."]),
+            ]
+        )
+        report = harness.run()
+        assert report.findings == ()
+        assert "no such module" in " ".join(report.missing_information)
 
 
 class TestCompleteness:

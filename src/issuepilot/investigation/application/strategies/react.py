@@ -133,6 +133,7 @@ class ReActStrategy:
                 languages=self._languages,
                 steps=[{"tool": s.tool, "observation": s.observation} for s in state.steps],
                 remaining_steps=current.remaining,
+                read_a_file=any(s.call.tool is ToolName.READ_FILE for s in state.steps),
             )
             reply = self._model.generate(
                 StructuredRequest(

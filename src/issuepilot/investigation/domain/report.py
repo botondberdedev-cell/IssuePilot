@@ -49,8 +49,11 @@ class InvestigationReport:
     missing_information: tuple[str, ...] = field(default=())
 
     def __post_init__(self) -> None:
-        if not self.findings:
-            raise ValueError("a report requires at least one finding")
+        # A report with no findings is valid *only* when it explains what it
+        # could not establish. Saying "the repository does not answer this" is
+        # a correct outcome; saying nothing at all is not.
+        if not self.findings and not self.missing_information:
+            raise ValueError("a report must contain findings or explain what is missing")
         for finding in self.findings:
             for reference in finding.evidence:
                 if reference.commit_sha != self.commit_sha:

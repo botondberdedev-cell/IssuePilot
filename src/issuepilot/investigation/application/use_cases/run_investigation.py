@@ -184,18 +184,15 @@ class RunInvestigation:
 
         references = [reference for _, reference in shown]
         findings = _build_findings(reply.data, references)
-        if not findings:
-            # The model produced nothing citable. Rather than fail, report the
-            # evidence that was gathered and mark the gap honestly.
-            findings = (
-                Finding(
-                    claim="Relevant code was located but no conclusion could be drawn.",
-                    confidence=Confidence(0.1),
-                    evidence=tuple(references[:3]),
-                ),
-            )
 
         missing = _string_list(reply.data.get("missing_information"))
+        if not findings and not missing:
+            # The model concluded nothing and said nothing about why.
+            # Inventing a finding here would be the exact failure this
+            # product exists to prevent, so record the gap instead.
+            missing = (
+                "The retrieved code did not answer the issue, and no explanation was produced.",
+            )
         if outcome.timed_out:
             missing = (*missing, "The time budget ran out before the agent finished.")
         elif outcome.budget_exhausted:

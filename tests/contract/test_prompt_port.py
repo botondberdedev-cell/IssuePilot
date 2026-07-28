@@ -16,6 +16,7 @@ STEP_CONTEXT = {
     "languages": "Python",
     "steps": [],
     "remaining_steps": 5,
+    "read_a_file": False,
 }
 
 

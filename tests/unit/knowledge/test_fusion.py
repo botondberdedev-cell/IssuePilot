@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from issuepilot.knowledge.domain.fusion import RRF_K, reciprocal_rank_fusion
+from issuepilot.knowledge.domain.fusion import (
+    RRF_K,
+    FusedResult,
+    diversify,
+    reciprocal_rank_fusion,
+)
 
 
 def test_single_source_preserves_its_order() -> None:
@@ -61,3 +66,38 @@ def test_empty_input_yields_empty_output() -> None:
 def test_invalid_k_is_rejected() -> None:
     with pytest.raises(ValueError, match="k must be positive"):
         reciprocal_rank_fusion({"lexical": ["a"]}, k=0)
+
+
+class TestDiversify:
+    def _results(self, *keys: str) -> list[FusedResult]:
+        return reciprocal_rank_fusion({"lexical": list(keys)})
+
+    def test_one_verbose_file_cannot_occupy_every_slot(self) -> None:
+        """The failure this exists to prevent: a design document crowding out
+        the code it describes."""
+        fused = self._results("doc#1", "doc#2", "doc#3", "doc#4", "code#1")
+        kept = diversify(fused, lambda r: r.key.split("#")[0], per_group=2, limit=3)
+        assert [r.key for r in kept] == ["doc#1", "doc#2", "code#1"]
+
+    def test_rank_order_is_preserved_within_the_cap(self) -> None:
+        fused = self._results("a#1", "b#1", "a#2", "b#2")
+        kept = diversify(fused, lambda r: r.key.split("#")[0], per_group=2)
+        assert [r.key for r in kept][:4] == ["a#1", "b#1", "a#2", "b#2"]
+
+    def test_overflow_is_appended_not_discarded(self) -> None:
+        """A genuinely one-file answer still surfaces the rest of that file."""
+        fused = self._results("a#1", "a#2", "a#3")
+        kept = diversify(fused, lambda r: r.key.split("#")[0], per_group=1)
+        assert [r.key for r in kept] == ["a#1", "a#2", "a#3"]
+
+    def test_limit_truncates_after_diversifying(self) -> None:
+        fused = self._results("a#1", "a#2", "b#1")
+        kept = diversify(fused, lambda r: r.key.split("#")[0], per_group=1, limit=2)
+        assert [r.key for r in kept] == ["a#1", "b#1"]
+
+    def test_empty_input_yields_empty(self) -> None:
+        assert diversify([], lambda r: r.key) == []
+
+    def test_a_nonpositive_cap_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="per_group must be positive"):
+            diversify(self._results("a#1"), lambda r: r.key, per_group=0)
