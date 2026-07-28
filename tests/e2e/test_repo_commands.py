@@ -10,8 +10,9 @@ from issuepilot.adapters.cli.app import run
 from issuepilot.adapters.cli.services import CheckResult, CliServices
 from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.errors import AcquisitionError, PolicyDeniedError
-from tests.support.fakes.repository_service import (
+from tests.support.fakes.services import (
     DEFAULT_SHA,
+    StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
 )
@@ -27,6 +28,7 @@ def services(repository: StubRepositoryService | None = None) -> CliServices:
         config_dump={},
         repository=repository or StubRepositoryService(),
         knowledge=StubKnowledgeService(),
+        investigation=StubInvestigationService(),
     )
 
 

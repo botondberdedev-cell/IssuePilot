@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": {"type": "string"},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim": {"type": "string"},
+          "confidence": {"type": "number"},
+          "evidence_indices": {"type": "array", "items": {"type": "integer"}}
+        },
+        "required": ["claim", "confidence", "evidence_indices"]
+      }
+    },
+    "missing_information": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["summary", "findings"]
+}

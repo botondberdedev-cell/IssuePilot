@@ -14,6 +14,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from issuepilot.investigation.application.dto import ReportDTO
 from issuepilot.knowledge.application.dto import IndexStatsDTO, SearchHitDTO
 from issuepilot.repository.application.dto import ManifestDTO, SnapshotDTO
 from issuepilot.shared_kernel.cancellation import CancellationToken
@@ -71,6 +72,24 @@ class KnowledgeService(Protocol):
     def is_indexed(self, commit_sha: str) -> bool: ...
 
 
+class InvestigationService(Protocol):
+    """The investigation loop, expressed in primitives the CLI already has."""
+
+    def investigate(
+        self,
+        issue_text: str,
+        commit_sha: str,
+        root_path: str,
+        *,
+        max_steps: int | None = None,
+        on_step: object = None,
+    ) -> ReportDTO: ...
+
+    def recent_reports(self, limit: int = 20) -> Sequence[ReportDTO]: ...
+
+    def get_report(self, run_id: str) -> ReportDTO | None: ...
+
+
 @dataclass(frozen=True, slots=True)
 class CliServices:
     version: str
@@ -80,3 +99,4 @@ class CliServices:
     """Effective non-secret configuration, already redacted, for ``config show``."""
     repository: RepositoryService
     knowledge: KnowledgeService
+    investigation: InvestigationService

@@ -1,0 +1,16 @@
+{
+  "react_step@v1": {
+    "schema": "investigation/react_step@v1.schema.json",
+    "schema_sha256": "ef6d21dd12b7edc8b80be3bf976e25e953b51d3a54a7e3a0fd660db47c0e2473",
+    "template": "investigation/react_step@v1.j2",
+    "template_sha256": "f7b821e7957b3602578ab8f96b88629f31e3f08bbfdbfb7ae8e17d7badf4a836",
+    "version": "1.0.0"
+  },
+  "report@v1": {
+    "schema": "investigation/report@v1.schema.json",
+    "schema_sha256": "e3a6fb387fbd18cd9152fb85458ac42a6a521fe8d2e87b0aa242404c884ed17c",
+    "template": "investigation/report@v1.j2",
+    "template_sha256": "8a7e7b01d53e195cbc22a0635c80ebc529058960080040686e3c48fde84e1ecc",
+    "version": "1.0.0"
+  }
+}

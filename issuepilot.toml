@@ -1,0 +1,10 @@
+# Project configuration. Models are pinned to exact tags: Ollama resolves a
+# bare name to `name:latest`, so an unpinned name silently means a different
+# model on a machine that pulled a different tag.
+
+[models]
+chat = "qwen3:8b"
+embedding = "embeddinggemma:latest"
+
+[investigation]
+max_steps = 8

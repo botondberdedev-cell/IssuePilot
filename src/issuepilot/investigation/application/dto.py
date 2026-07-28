@@ -15,6 +15,7 @@ class EvidenceCandidateDTO:
     snippet: str
     score: float
     commit_sha: str
+    symbol: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

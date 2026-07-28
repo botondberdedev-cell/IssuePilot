@@ -14,8 +14,15 @@ class OllamaHealth:
     error: str | None = None
 
     def has_model(self, name: str) -> bool:
-        """Match with and without a tag suffix (``qwen3`` matches ``qwen3:latest``)."""
-        return any(m == name or m.split(":", 1)[0] == name for m in self.models)
+        """Whether Ollama would resolve ``name`` to an installed model.
+
+        Ollama resolves a bare name to ``name:latest`` — it does *not* fall
+        back to some other tag. Matching on the prefix instead would report
+        ``qwen3`` as available when only ``qwen3:8b`` is installed, so doctor
+        would pass and the first real request would fail with a 404.
+        """
+        wanted = name if ":" in name else f"{name}:latest"
+        return wanted in self.models
 
 
 def check_health(base_url: str, *, timeout_seconds: float = 3.0) -> OllamaHealth:

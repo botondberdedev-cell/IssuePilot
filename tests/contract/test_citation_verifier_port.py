@@ -1,11 +1,11 @@
-"""Contract suite for CitationVerifierPort (repository translator joins in v0.1)."""
+"""Contract suite for CitationVerifierPort."""
 
 from __future__ import annotations
 
 import pytest
 
 from issuepilot.investigation.application.ports import CitationVerifierPort
-from tests.support.fakes.citations import FakeCitationVerifier
+from tests.support.fakes.investigation import FakeCitationVerifier
 
 SHA = "d" * 40
 
@@ -29,5 +29,5 @@ def test_wrong_range_fails(verifier: CitationVerifierPort) -> None:
     assert not verifier.verify("src/app.py", 10, 21, SHA)
 
 
-def test_wrong_sha_fails(verifier: CitationVerifierPort) -> None:
+def test_wrong_snapshot_fails(verifier: CitationVerifierPort) -> None:
     assert not verifier.verify("src/app.py", 10, 20, "e" * 40)

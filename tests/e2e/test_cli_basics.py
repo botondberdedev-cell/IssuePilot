@@ -10,7 +10,8 @@ from issuepilot.adapters.cli.app import run
 from issuepilot.adapters.cli.services import CheckResult, CliServices
 from issuepilot.shared_kernel.cancellation import CancellationToken
 from issuepilot.shared_kernel.errors import AcquisitionError
-from tests.support.fakes.repository_service import (
+from tests.support.fakes.services import (
+    StubInvestigationService,
     StubKnowledgeService,
     StubRepositoryService,
 )
@@ -40,6 +41,7 @@ def make_services(
         config_dump={"models": {"chat": "qwen3"}},
         repository=StubRepositoryService(),
         knowledge=StubKnowledgeService(),
+        investigation=StubInvestigationService(),
     )
 
 

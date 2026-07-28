@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string",
+      "description": "One short sentence on why this action helps answer the issue."
+    },
+    "tool": {
+      "type": "string",
+      "enum": ["search_text", "semantic_search", "read_file", "record_hypothesis", "finish"]
+    },
+    "query": {"type": "string"},
+    "path": {"type": "string"},
+    "start_line": {"type": "integer"},
+    "end_line": {"type": "integer"},
+    "hypothesis": {"type": "string"}
+  },
+  "required": ["reason", "tool"]
+}

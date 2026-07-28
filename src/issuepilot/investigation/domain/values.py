@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum, unique
+from enum import StrEnum, unique
 from typing import Final
 
 _MAX_ISSUE_CHARS: Final = 100_000
 
 
 @unique
-class ToolName(Enum):
+class ToolName(StrEnum):
     """The closed set of tools an investigation strategy may request.
 
     Adding a member is a design decision (see governance tool policy), never

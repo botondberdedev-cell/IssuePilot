@@ -18,6 +18,10 @@ from issuepilot.adapters.sqlite.connection import connect
 from issuepilot.adapters.sqlite.migrator import migrate
 from issuepilot.bootstrap.config import AppConfig, load_config, redacted_dump
 from issuepilot.bootstrap.wiring.diagnostics import build_environment_checks
+from issuepilot.bootstrap.wiring.investigation import (
+    InvestigationServiceAdapter,
+    build_investigation_facade,
+)
 from issuepilot.bootstrap.wiring.knowledge import (
     KnowledgeServiceAdapter,
     RepositorySourceTranslator,
@@ -89,6 +93,20 @@ def build_services(
         semantic_enabled=semantic_enabled,
     )
 
+    snapshot_roots: dict[str, str] = {}
+    investigation_facade = build_investigation_facade(
+        connection=resolved_connection,
+        repository=repository_facade,
+        knowledge=knowledge_facade,
+        ids=ids,
+        clock=clock,
+        bus=bus,
+        ollama_url=resolved_config.models.ollama_url,
+        chat_model=resolved_config.models.chat,
+        keep_alive=resolved_config.models.keep_alive,
+        snapshot_roots=snapshot_roots,
+    )
+
     return CliServices(
         version=_version(),
         cancellation=cancellation,
@@ -98,6 +116,9 @@ def build_services(
             repository_facade, resolved_config.repository.history_depth
         ),
         knowledge=KnowledgeServiceAdapter(knowledge_facade, source),
+        investigation=InvestigationServiceAdapter(
+            investigation_facade, snapshot_roots, resolved_config.investigation.max_steps
+        ),
     )
 
 
