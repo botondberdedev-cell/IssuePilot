@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-issuepilot = "issuepilot.adapters.cli.app:main"
+issuepilot = "issuepilot.bootstrap.entry:main"
 
 [dependency-groups]
 dev = [
