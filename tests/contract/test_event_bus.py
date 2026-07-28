@@ -7,7 +7,7 @@ the fake, from the outbox table for the SQLite bus.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -43,16 +43,23 @@ type BusAndProbe = tuple[RecordingEventBus | SqliteOutboxEventBus, Callable[[], 
 
 
 @pytest.fixture(params=["fake", "sqlite"])
-def bus_and_probe(request: pytest.FixtureRequest) -> BusAndProbe:
+def bus_and_probe(request: pytest.FixtureRequest) -> Iterator[BusAndProbe]:
     if request.param == "fake":
         fake = RecordingEventBus()
-        return fake, lambda: [e.event_id for e in fake.published]
+        yield fake, lambda: [e.event_id for e in fake.published]
+        return
     conn = connect(":memory:")
-    migrate(conn)
-    real = SqliteOutboxEventBus(conn)
-    return real, lambda: [
-        str(row["event_id"]) for row in conn.execute("SELECT event_id FROM outbox_events")
-    ]
+    try:
+        migrate(conn)
+        real = SqliteOutboxEventBus(conn)
+        yield (
+            real,
+            lambda: [
+                str(row["event_id"]) for row in conn.execute("SELECT event_id FROM outbox_events")
+            ],
+        )
+    finally:
+        conn.close()
 
 
 def _event(detail: str = "x") -> _SomethingHappened:

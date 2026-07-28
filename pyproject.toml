@@ -90,6 +90,12 @@ markers = [
     "slow: long-running (extended hypothesis profiles, large fixtures)",
     "security: security-relevant tests (run in the default set)",
 ]
+filterwarnings = [
+    "error",
+    # A leaked connection or file handle is a defect, not noise: fixtures own
+    # their resources and must close them.
+    "error::ResourceWarning",
+]
 
 # ── coverage ────────────────────────────────────────────────────────────────
 

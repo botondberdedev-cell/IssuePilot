@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
 
 import pytest
 
@@ -14,8 +15,12 @@ from issuepilot.shared_kernel.errors import InternalError
 
 
 @pytest.fixture
-def conn() -> sqlite3.Connection:
-    return connect(":memory:")
+def conn() -> Iterator[sqlite3.Connection]:
+    connection = connect(":memory:")
+    try:
+        yield connection
+    finally:
+        connection.close()
 
 
 def test_discovered_migrations_are_contiguous_from_one() -> None:
